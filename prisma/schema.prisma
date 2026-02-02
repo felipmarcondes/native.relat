@@ -1,0 +1,150 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  STAFF
+  CLIENT
+}
+
+enum MetaConnectionType {
+  instagram_profile
+  facebook_page
+  ad_account
+}
+
+enum MetaConnectionStatus {
+  connected
+  disconnected
+}
+
+enum SourceType {
+  instagram
+  facebook
+}
+
+model User {
+  id           String        @id @default(cuid())
+  email        String        @unique
+  name         String?
+  passwordHash String
+  role         Role
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  companies    CompanyUser[]
+}
+
+model Company {
+  id             String           @id @default(cuid())
+  name           String
+  maxProfiles    Int              @default(5)
+  maxAdAccounts  Int              @default(1)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  users          CompanyUser[]
+  connections    MetaConnection[]
+  profileMetrics ProfileMetricsDaily[]
+  posts          ContentPost[]
+  adsMetrics     AdsMetricsDaily[]
+}
+
+model CompanyUser {
+  id        String   @id @default(cuid())
+  companyId String
+  userId    String
+  role      Role
+  createdAt DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@unique([companyId, userId])
+}
+
+model MetaConnection {
+  id          String               @id @default(cuid())
+  companyId   String
+  type        MetaConnectionType
+  externalId  String
+  displayName String
+  status      MetaConnectionStatus @default(connected)
+  createdAt   DateTime             @default(now())
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@index([companyId, type])
+}
+
+model ProfileMetricsDaily {
+  id                String     @id @default(cuid())
+  companyId         String
+  source            SourceType
+  profileExternalId String
+  date              DateTime
+  profileViews      Int
+  totalViews        Int
+  totalReach        Int
+  engagement        Int
+  likes             Int
+  comments          Int
+  shares            Int
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@index([companyId, date])
+}
+
+model ContentPost {
+  id                String     @id @default(cuid())
+  companyId         String
+  source            SourceType
+  postExternalId    String
+  profileExternalId String
+  createdTime       DateTime
+  permalink         String
+  captionShort      String
+  mediaType         String
+  metrics           ContentMetricsDaily[]
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@index([companyId, createdTime])
+}
+
+model ContentMetricsDaily {
+  id        String   @id @default(cuid())
+  postId    String
+  date      DateTime
+  views     Int
+  reach     Int
+  engagement Int
+  likes     Int
+  comments  Int
+  shares    Int
+
+  post ContentPost @relation(fields: [postId], references: [id])
+
+  @@index([postId, date])
+}
+
+model AdsMetricsDaily {
+  id                  String   @id @default(cuid())
+  companyId           String
+  adAccountExternalId String
+  date                DateTime
+  spend               Float
+  results             Int
+  clicks              Int
+  impressionsOrViews  Int
+  activeAdsCount      Int
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@index([companyId, date])
+}
